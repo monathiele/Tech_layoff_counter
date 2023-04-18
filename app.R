@@ -28,42 +28,46 @@ library(dplyr)
 layoffs <- read.csv("layoffs.csv")
 head(layoffs)
 
+# Convert total_laid_off and percentage_laid_off to numeric
+layoffs$total_laid_off <- as.numeric(layoffs$total_laid_off)
+layoffs$percentage_laid_off <- as.numeric(layoffs$percentage_laid_off)
+
+
 # Define UI for application that draws a histogram
 ui <- fluidPage(
-
-    # Application title
-    titlePanel("Old Faithful Geyser Data"),
-
-    # Sidebar with a slider input for number of bins 
-    sidebarLayout(
-        sidebarPanel(
-            sliderInput("bins",
-                        "Number of bins:",
-                        min = 1,
-                        max = 50,
-                        value = 30)
-        ),
-
-        # Show a plot of the generated distribution
-        mainPanel(
-           plotOutput("distPlot")
-        )
+  titlePanel("Layoffs by Industry"),
+  sidebarLayout(
+    sidebarPanel(
+      selectInput(inputId = "industry",
+                  label = "Choose an Industry:",
+                  choices = sort(unique(layoffs$industry)),
+                  selected = NULL)
+    ),
+    mainPanel(
+      h3("Total Laid Off:"),
+      verbatimTextOutput("total_laid_off"),
+      h3("Percentage Laid Off:"),
+      verbatimTextOutput("percentage_laid_off")
     )
+  )
 )
+
 
 # Define server logic required to draw a histogram
 server <- function(input, output) {
-
-    output$distPlot <- renderPlot({
-        # generate bins based on input$bins from ui.R
-        x    <- faithful[, 2]
-        bins <- seq(min(x), max(x), length.out = input$bins + 1)
-
-        # draw the histogram with the specified number of bins
-        hist(x, breaks = bins, col = 'darkgray', border = 'white',
-             xlab = 'Waiting time to next eruption (in mins)',
-             main = 'Histogram of waiting times')
-    })
+  
+  industry_data <- reactive({
+    filter(layoffs, industry == input$industry)
+  })
+  
+  output$total_laid_off <- renderPrint({
+    sum(industry_data()$total_laid_off, na.rm = TRUE)
+  })
+  
+  output$percentage_laid_off <- renderPrint({
+    paste0(round(sum(industry_data()$percentage_laid_off, na.rm = TRUE), 2), "%")
+  })
+  
 }
 
 # Run the application 
