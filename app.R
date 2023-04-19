@@ -39,12 +39,16 @@ layoffs$percentage_laid_off <- as.numeric(layoffs$percentage_laid_off)
 layoffs$date <- as.Date(layoffs$date , format = "%m/%d/%Y")
 
 
-
 ui <- fluidPage(
+  titlePanel("Layoff Counter"),
+  tags$head(tags$style(HTML("body{background-color: #F5F5F5}"))),
+  
   sidebarLayout(
     sidebarPanel(
-      selectInput("industry", "Select an Industry:",
-                  choices = c("All", unique(layoffs$industry)))
+      selectInput("industry", "Select Industries:",
+                  choices = c( unique(layoffs$industry)),
+                  multiple = TRUE,
+                  selected = "All")
     ),
     mainPanel(
       plotOutput("industry_plot", height = "300px"),
@@ -53,14 +57,16 @@ ui <- fluidPage(
   )
 )
 
+
+
 server <- function(input, output) {
   
   # Filter data by selected industry
   filtered_layoffs <- reactive({
-    if (input$industry == "All") {
+    if (is.null(input$industry) || "All" %in% input$industry) {
       return(layoffs)
     } else {
-      return(layoffs %>% filter(industry == input$industry))
+      return(layoffs %>% filter(industry %in% input$industry))
     }
   })
   
@@ -74,15 +80,13 @@ server <- function(input, output) {
   
   # Line plot of total layoffs over time
   output$time_plot <- renderPlot({
-    filtered_data <- filtered_layoffs() %>% 
-      filter(!is.na(date)) %>% # Remove rows with missing dates
-      mutate(date = as.Date(date, format = "%m/%d/%Y")) # Convert date to proper format
-    ggplot(filtered_data, aes(x = date, y = total_laid_off)) +
+    filtered_data <- filtered_layoffs() %>% filter(!is.na(date))
+    print(filtered_data)
+    ggplot(filtered_data, aes(x = mdy(date), y = total_laid_off)) +
       geom_line() +
       labs(x = "Date", y = "Total Laid Off", title = "Total Layoffs over Time") +
       theme_minimal()
   })
-  
   
 }
 
