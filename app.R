@@ -36,55 +36,57 @@ head(layoffs)
 # Convert total_laid_off and percentage_laid_off to numeric
 layoffs$total_laid_off <- as.numeric(layoffs$total_laid_off)
 layoffs$percentage_laid_off <- as.numeric(layoffs$percentage_laid_off)
-layoffs$date <- as.Date(layoffs$date , format = "%m/%d/%Y")
+#layoffs$date <- as.POSIXct(layoffs$date, format = "%Y-%m-%d")
+layoffs$date <- as.Date(layoffs$date, format="%Y-%m-%d")
 
 
 ui <- fluidPage(
-  titlePanel("Layoff Counter"),
-  tags$head(tags$style(HTML("body{background-color: #F5F5F5}"))),
+  titlePanel(div("Layoff Counter 😢", style = "text-align: center; padding: 20px;")),
+  tags$head(tags$style(HTML("body {background-color: #FF69B4;} .navbar-brand {font-weight: bold; font-size: 24px;}"))),
   
   sidebarLayout(
     sidebarPanel(
       selectInput("industry", "Select Industries:",
-                  choices = c( unique(layoffs$industry)),
+                  choices = sort(unique(layoffs$industry)),
                   multiple = TRUE,
                   selected = "All")
     ),
     mainPanel(
-      plotOutput("industry_plot", height = "300px"),
+      plotOutput("industry_plot", height = "400px"),
       plotOutput("time_plot", height = "300px")
     )
+    
   )
 )
-
-
 
 server <- function(input, output) {
   
   # Filter data by selected industry
   filtered_layoffs <- reactive({
     if (is.null(input$industry) || "All" %in% input$industry) {
-      return(layoffs)
+      return(layoffs %>% arrange(desc(percentage_laid_off)))
     } else {
-      return(layoffs %>% filter(industry %in% input$industry))
+      return(layoffs %>% filter(industry %in% input$industry) %>% arrange(desc(percentage_laid_off)))
     }
   })
   
   # Bar plot of percentages laid off by industry
   output$industry_plot <- renderPlot({
-    ggplot(filtered_layoffs(), aes(x = industry, y = percentage_laid_off, fill = industry)) +
+    sorted_layoffs <- filtered_layoffs() %>% arrange(desc(percentage_laid_off))
+    ggplot(sorted_layoffs, aes(x = industry, y = percentage_laid_off, fill = industry)) +
       geom_bar(stat = "identity") +
       labs(x = "Industry", y = "Percentage Laid Off", title = "Percentage Laid Off by Industry") +
-      theme_minimal()
+      theme_minimal() +
+      theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))
   })
   
-  # Line plot of total layoffs over time
+  # Time plot of layoffs over time
   output$time_plot <- renderPlot({
-    filtered_data <- filtered_layoffs() %>% filter(!is.na(date))
-    print(filtered_data)
-    ggplot(filtered_data, aes(x = mdy(date), y = total_laid_off)) +
-      geom_line() +
-      labs(x = "Date", y = "Total Laid Off", title = "Total Layoffs over Time") +
+    sorted_layoffs <- filtered_layoffs() %>% arrange(date)
+    ggplot(sorted_layoffs, aes(x = date, y = total_laid_off, color = industry)) +
+      geom_point() +
+      labs(x = "Month", y = "Total Laid Off", title = "Total Layoffs over Time") +
+      scale_x_date(date_labels = "%b") +
       theme_minimal()
   })
   
